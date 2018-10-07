@@ -1,0 +1,5 @@
+NET "output_<0>" LOC = P85 | IOSTANDARD = LVTTL; 
+NET "output_<1>" LOC = P88 | IOSTANDARD = LVTTL;
+NET "output_<2>" LOC = P93 | IOSTANDARD = LVTTL;
+NET "sum" LOC = P87 | IOSTANDARD = LVTTL;
+NET "carry" LOC = P84 | IOSTANDARD = LVTTL;
