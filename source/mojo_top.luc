@@ -48,8 +48,10 @@ module mojo_top (
     
     io_led = 3x{{8h00}};    // turn all LED from the 3 blocks off
     output_[2:0] = io_dip[2][2:0];  // input <2> down to input <0> is linked to 2nd group dip from <2> to <0>
+        
     io_led[2][0] = sum;  // 1st group LED <0> represents SUM
     io_led[2][1] = carry;// 1st group LED <1> represents CARRY
+    
     
     if (io_dip[2][0] ^ io_dip[2][1] ^ io_dip[2][2] == sum) {// ^ is XOR <A OR B OR C>
       io_led[2][7] = 1; // indicate that sum is correct
@@ -59,7 +61,7 @@ module mojo_top (
       }
     
     
-    if (counter.q[25:0] == 0) {
+    if (counter.q[26:0] == 0) {
     //The automatic FSM works as follows:
       case(testState.q) { // checking for state change
     
@@ -79,49 +81,49 @@ module mojo_top (
         
          testState.AC:
           if (carry == 1 & sum == 0) {
-            testState.d = testState.ABC;
+            testState.d = testState.AB;
           } else {
               testState.d = testState.FAIL;
           }
         
         testState.BC:
           if (carry == 1 & sum == 0) {
-            testState.d = testState.AC;
+            testState.d = testState.A;
           } else {
               testState.d = testState.FAIL;
           }                  
           
         testState.AB:
           if (carry == 1 & sum == 0) {
-            testState.d = testState.BC;
+            testState.d = testState.ABC;
           } else {
               testState.d = testState.FAIL;
           }          
         
           testState.C:
           if (carry == 0 & sum == 1) {
-            testState.d = testState.AB;
+            testState.d = testState.B;
           } else {
               testState.d = testState.FAIL;
           }
                   
         testState.B:
           if (carry == 0 & sum == 1) {
-            testState.d = testState.C;
+            testState.d = testState.BC;
           } else {
               testState.d = testState.FAIL;
           }
         
         testState.A:
           if (carry == 0 & sum == 1) {
-            testState.d = testState.B;
+            testState.d = testState.AC;
           } else {
               testState.d = testState.FAIL;
           }
         
         testState.IDLE:
           if (io_button[1] == 1){
-            testState.d = testState.A;
+            testState.d = testState.C;
           }
           
         testState.FAIL:
@@ -136,47 +138,55 @@ module mojo_top (
     
         testState.O:
           output_[2:0] = 000; // changing the value of the dip to the corresponding number
-          io_seg = 8b10000000;
+          io_led[0][2:0] = 000;
+          //io_seg = 8b10000000;
           io_sel = ~4h1;
                  
         testState.ABC:
           output_[2:0] = 111;
-          io_seg = 8b11111000;
+          io_led[0][2:0] = 111;
+          //io_seg = 8b11111000;
           io_sel = ~4h1;
         
          testState.AC:
           output_[2:0] = 101;
-          io_seg = 8b10000010;
+          io_led[0][2:0] = 101;
+          //io_seg = 8b10000010;
           io_sel = ~4h1;
         
         testState.BC:
           output_[2:0] = 110;
-          io_seg = 8b10010010;
+          io_led[0][2:0] = 110;
+          //io_seg = 8b10010010;
           io_sel = ~4h1;
           
         testState.AB:
           output_[2:0] = 011;
-          io_seg = 8b10011001;
+          io_led[0][2:0] = 011;
+          //io_seg = 8b10011001;
           io_sel = ~4h1;
           
         testState.C:
           output_[2:0] = 100;
-          io_seg = 8b10110000;
+          io_led[0][2:0] = 100;
+          //io_seg = 8b10110000;
           io_sel = ~4h1;     
          
         testState.B:
           output_[2:0] = 010;
-          io_seg = 8b10100100;
+          io_led[0][2:0] = 010;
+          //io_seg = 8b10100100;
           io_sel = ~4h1; 
         
         testState.A:
           output_[2:0] = 001;
-          io_seg = 8b11001111;
-          io_sel = ~4h1;
+          io_led[0][2:0] = 001;
+          //io_seg = 8b11001111;
+          io_sel = ~4h1; //1110  4h0100
         
         testState.IDLE:
           io_seg = ~num_to_seg.out;
-          io_sel = 4h0;
+          io_sel = 4h0; //0000
                     
         testState.FAIL:
           if (counter.q[24] == 1) {
