@@ -1,0 +1,19 @@
+module speeds (
+    input num[3],
+    output speed[24]
+  ) {
+ 
+  always {
+    case (num) {
+      0: speed = 24h2F0000;
+      1: speed = 24h200800;
+      2: speed = 24h200000;
+      3: speed = 24h10F000;
+      4: speed = 24h100000;
+      5: speed = 24h0FF000;
+      6: speed = 24h0F0000;
+      7: speed = 24h0A0000;
+      default: speed = 24h300000;
+    }
+  }
+}

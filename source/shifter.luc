@@ -1,0 +1,23 @@
+module shifter (
+    input alufn[6],
+    input a[16],
+    input b[16],
+    output shift[16]
+  ) {
+
+  sig xb[4];
+  
+  always {
+    xb = $signed(b[3:0]);    
+    case (alufn[1:0]) { 
+      2b00: //6h20
+        shift = $signed(a) << xb;        
+      2b01: //6h21
+        shift = $signed(a) >> xb;        
+      2b11: //6h23
+        shift = $signed(a) >>> xb;      
+      default:
+        shift = 0;
+      }
+  }
+}

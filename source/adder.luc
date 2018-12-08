@@ -1,0 +1,20 @@
+module adder (
+    input a[16],  
+    input b[16],  
+    input alufn[6],
+    output adder[16]
+  ) {
+
+  always {
+    case(alufn[1:0]) {
+      2b00:
+        adder = $signed(a) + $signed(b);
+      2b01:
+        adder = $signed(a) - $signed(b);
+      2b10:
+        adder = $signed(a) * $signed(b);
+      default:
+        adder = 0;
+        }
+   }
+}

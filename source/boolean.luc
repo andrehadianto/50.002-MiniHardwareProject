@@ -1,0 +1,22 @@
+module boolean (
+    input a[16],
+    input b[16],
+    input alufn[6],
+    output boolean[16]
+  ) {
+
+  always {  
+    case (alufn[3:0]) {
+      4b1000:
+        boolean = $signed(a) & $signed(b); // AND
+      4b1110:
+        boolean = $signed(a) | $signed(b); // OR
+      4b0110:
+        boolean = $signed(a) ^ $signed(b); // XOR
+      4b1010:
+        boolean = $signed(a); // A
+      default:
+        boolean = 0;
+        }
+  }
+}

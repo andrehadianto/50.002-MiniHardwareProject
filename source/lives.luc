@@ -1,0 +1,15 @@
+module lives (
+    input num[16], 
+    output led[3]
+  ) {
+
+  always {
+    case (num) {
+      0: led = 3b000;
+      1: led = 3b001;
+      2: led = 3b011;
+      3: led = 3b111;
+      default: led = 3b111;
+    }
+  }
+}

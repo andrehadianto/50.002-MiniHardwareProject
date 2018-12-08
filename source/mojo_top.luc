@@ -1,198 +1,187 @@
 module mojo_top (
-    input clk,              // 50MHz clock
-    input rst_n,            // reset button (active low)
-    output led [8],         // 8 user controllable LEDs
-    output spi_miso,        // AVR SPI MISO
-    output spi_channel [4], // AVR general purpose pins (used by default to select ADC channel)
-    output avr_rx,          // AVR RX (FPGA TX)    
-    output output_[3],
-    input sum,
-    input carry,   
+    input clk, // 50MHz clock
+    input rst_n, // reset button (active low)
+    output led [8], // 8 user controllable LEDs
     
-    output io_led [3][8],   // LEDs on IO Shield
-    output io_seg [8],      // 7-segment LEDs on IO Shield
-    output io_sel [4],      // Digit select on IO Shield
-    input io_button [5],    // 5 buttons on IO Shield
-    input io_dip [3][8]     // DIP switches on IO Shield
+    output led_pos[16],
+    output led_p1[3],
+    output led_p2[3],
+
+    input p1_button,
+    input p2_button,
+    input start_button
+
   ) {
-  
-  sig rst;                  // reset signal
+  sig rst; // reset signal
+  alu alu;
+  speeds speeds_lib;
+  lives p1_lives;
+  lives p2_lives;
   
   .clk(clk) {
-    // The reset conditioner is used to synchronize the reset signal to the FPGA
-    // clock. This ensures the entire FPGA comes out of reset at the same time.
     reset_conditioner reset_cond;
+
+    .rst(rst){
+    fsm state = {MENU,P1,P2,P1_LOSE,P2_LOSE,LOSE};
+    dff ball_pos[16]; //store position of ball_pos
+    dff ball_speed[24]; //lower means faster
     
-    .rst(rst) {
-      fsm testState = {IDLE, A, B, C, AB, AC, BC, ABC, O, FAIL}; // A:100, B:010, C:001, AB:110, AC:101, BC:011, ABC:111, 0:000, Idle and Fail are as the name suggest)
-      counter ctr (#SIZE(3), #DIV(24));      
-      }
+    dff lives_p1[16]; //P1 lives
+    dff lives_p2[16]; //P2 lives 
+      
+    dff speeds[24];       //stores speed 
+    dff speed_counter[2]; //change speeds after ball bounces 3 times
+      
+    dff delay[25];
     
-      dff counter[27];    
-    }
-    decoder num_to_seg (#WIDTH(3));
-  
-  always { 
-    num_to_seg.in = ctr.value;
-  
-    io_seg = ~8b0; // Default to off
-    io_sel = 4h1;
-    
-    reset_cond.in = ~rst_n; // input raw inverted reset signal
-    rst = reset_cond.out;   // conditioned reset
-    
-    led = 8h00;             // turn LEDs off
-    spi_miso = bz;          // not using SPI
-    spi_channel = bzzzz;    // not using flags
-    avr_rx = bz;            // not using serial port
-    
-    io_led = 3x{{8h00}};    // turn all LED from the 3 blocks off
-    output_[2:0] = io_dip[2][2:0];  // input <2> down to input <0> is linked to 2nd group dip from <2> to <0>
-        
-    io_led[2][0] = sum;  // 1st group LED <0> represents SUM
-    io_led[2][1] = carry;// 1st group LED <1> represents CARRY
-    
-    
-    if (io_dip[2][0] ^ io_dip[2][1] ^ io_dip[2][2] == sum) {// ^ is XOR <A OR B OR C>
-      io_led[2][7] = 1; // indicate that sum is correct
-      }
-    if ((io_dip[2][0] & io_dip[2][1]) | ((io_dip[2][0] ^ io_dip[2][1]) & io_dip[2][2]) == carry) { // AB OR AC OR BC
-      io_led[2][6] = 1; // indicate that carry is correct
-      }
-    
-    
-    if (counter.q[26:0] == 0) {
-    //The automatic FSM works as follows:
-      case(testState.q) { // checking for state change
-    
-      testState.O:
-          if (carry == 0 & sum == 0) {
-            testState.d = testState.IDLE;
-          } else {
-              testState.d = testState.FAIL;
-          }
-        
-        testState.ABC:
-          if (carry == 1 & sum == 1) {
-            testState.d = testState.O;
-          } else {
-              testState.d = testState.FAIL;
-          }
-        
-         testState.AC:
-          if (carry == 1 & sum == 0) {
-            testState.d = testState.AB;
-          } else {
-              testState.d = testState.FAIL;
-          }
-        
-        testState.BC:
-          if (carry == 1 & sum == 0) {
-            testState.d = testState.A;
-          } else {
-              testState.d = testState.FAIL;
-          }                  
-          
-        testState.AB:
-          if (carry == 1 & sum == 0) {
-            testState.d = testState.ABC;
-          } else {
-              testState.d = testState.FAIL;
-          }          
-        
-          testState.C:
-          if (carry == 0 & sum == 1) {
-            testState.d = testState.B;
-          } else {
-              testState.d = testState.FAIL;
-          }
-                  
-        testState.B:
-          if (carry == 0 & sum == 1) {
-            testState.d = testState.BC;
-          } else {
-              testState.d = testState.FAIL;
-          }
-        
-        testState.A:
-          if (carry == 0 & sum == 1) {
-            testState.d = testState.AC;
-          } else {
-              testState.d = testState.FAIL;
-          }
-        
-        testState.IDLE:
-          if (io_button[1] == 1){
-            testState.d = testState.C;
-          }
-          
-        testState.FAIL:
-          if (counter.q == 0){
-            testState.d = testState.IDLE;
-          }
-       }
-    }
-    counter.d = counter.q+1;
-    
-    case(testState.q) { // giving proper led output
-    
-        testState.O:
-          output_[2:0] = 000; // changing the value of the dip to the corresponding number
-          io_led[0][2:0] = 000;
-          //io_seg = 8b10000000;
-          io_sel = ~4h1;
-                 
-        testState.ABC:
-          output_[2:0] = 111;
-          io_led[0][2:0] = 111;
-          //io_seg = 8b11111000;
-          io_sel = ~4h1;
-        
-         testState.AC:
-          output_[2:0] = 101;
-          io_led[0][2:0] = 101;
-          //io_seg = 8b10000010;
-          io_sel = ~4h1;
-        
-        testState.BC:
-          output_[2:0] = 110;
-          io_led[0][2:0] = 110;
-          //io_seg = 8b10010010;
-          io_sel = ~4h1;
-          
-        testState.AB:
-          output_[2:0] = 011;
-          io_led[0][2:0] = 011;
-          //io_seg = 8b10011001;
-          io_sel = ~4h1;
-          
-        testState.C:
-          output_[2:0] = 100;
-          io_led[0][2:0] = 100;
-          //io_seg = 8b10110000;
-          io_sel = ~4h1;     
-         
-        testState.B:
-          output_[2:0] = 010;
-          io_led[0][2:0] = 010;
-          //io_seg = 8b10100100;
-          io_sel = ~4h1; 
-        
-        testState.A:
-          output_[2:0] = 001;
-          io_led[0][2:0] = 001;
-          //io_seg = 8b11001111;
-          io_sel = ~4h1; //1110  4h0100
-        
-        testState.IDLE:
-          io_seg = ~num_to_seg.out;
-          io_sel = 4h0; //0000
-                    
-        testState.FAIL:
-          if (counter.q[24] == 1) {
-            io_sel = 4h0;
-            io_seg = 8b10001110;
-          } 
+    button button_p1;
+    button button_p2;
+    button button_start;
     }
   }
+
+  always {
+    led = speed_counter.q;
+    alu.a = 0;
+    alu.b = 1;
+    alu.alufn = 0;
+
+    reset_cond.in = ~rst_n; // input raw inverted reset signal
+    rst = reset_cond.out; // conditioned reset
+
+    led_pos = ball_pos.q; //representing ball movement in io_led[0]
+    
+    p1_lives.num = lives_p1.q[2:0];
+    p2_lives.num = lives_p2.q[2:0];
+    
+    led_p1 = p1_lives.led;
+    led_p2 = p2_lives.led;
+
+    button_p1.button = ~p1_button;
+    button_p2.button = ~p2_button;
+    button_start.button = ~start_button;
+    
+    speeds_lib.num = (ball_speed.q[21:19] ^ ball_speed.q[18:16]); // randomize speed to change to
+    
+    if (speed_counter.q == 2b11){
+      speed_counter.d = 2b0;
+      speeds.d = speeds_lib.speed;
+    }
+
+    case(state.q){
+      state.MENU: //reset game, ball position & #lives
+        led = 8b10101010;
+        ball_pos.d = 18b1;
+        lives_p1.d = 16b11;
+        lives_p2.d = 16b11;
+        speeds.d = 24h300000;
+        speed_counter.d = 0;
+        if(button_start.press) {
+          state.d = state.P1;
+          }
+        
+      state.P1:      
+        if (!ball_pos.q){ //ball out of range
+          lives_p1.d = lives_p1.q - 1; //"-1" life
+          if (delay.q == 0){
+           state.d = state.P1_LOSE;
+          }
+        }
+ 
+        if(button_p1.press){
+          if (ball_pos.q[15] | ball_pos.q[14]){ //check if ball in safe zone
+            speed_counter.d = speed_counter.q + 1; //increment number of ball bounces
+            state.d = state.P2;
+          }
+          else {
+            lives_p1.d = lives_p1.q - 1; //"-1" life    
+            state.d = state.P1_LOSE;       
+          }
+        }       
+        
+      state.P2:
+        if(!ball_pos.q){ //ball out of range
+          lives_p2.d = lives_p2.q - 1; //"-1" life 
+          if (delay.q == 0){
+           state.d = state.P2_LOSE;
+          }
+        }
+        
+        if(button_p2.press){
+          if (ball_pos.q[0] | ball_pos.q[1]){
+            speed_counter.d = speed_counter.q + 1; //increment number of ball bounces
+            state.d = state.P1;
+          }
+          else {
+            lives_p2.d = lives_p2.q - 1; //"-1" life
+            state.d = state.P2_LOSE; 
+          }
+        }
+        
+      state.P1_LOSE:
+        alu.a = lives_p1.q;
+        alu.b = 0;
+        alu.alufn = 6h33; //checks if lives left => game over
+        if (alu.out){
+          state.d = state.LOSE;
+          }
+        else {           
+          ball_pos.d = 16b1000000000000000;
+          if (button_p1.press){
+            state.d = state.P2; 
+          }        
+        }  
+    
+      state.P2_LOSE:
+        alu.a = lives_p2.q;
+        alu.b = 0;
+        alu.alufn = 6h33; //checks if lives left => game over
+        if (alu.out){
+          state.d = state.LOSE;
+        }
+        else {     
+          ball_pos.d = 16b1;  
+          if (button_p2.press){
+            state.d = state.P1;   
+          }      
+        }
+      
+      state.LOSE:
+        alu.a = lives_p1.q;
+        alu.b = 0;
+        alu.alufn = 6h33; //checks which player lost i.e. lives = 0
+        if (alu.out){
+          led_pos = 16h00FF;
+        }
+        else {
+          led_pos = 16hFF00;
+        }
+        if (button_start.press) {
+          state.d = state.MENU;
+        }
+        else{
+          state.d = state.LOSE;
+        }
+     }
+    
+     ball_speed.d = ball_speed.q + 1; //slow clock ticks when clk HIGH
+     delay.d = delay.q + 1;
+      
+     if (ball_speed.q >= speeds.q) {
+        ball_speed.d = 0;
+        case(state.q){  
+          state.P1:
+            alu.a = ball_pos.q;
+            alu.b = 1;
+            alu.alufn = 6h20; 
+            ball_pos.d = alu.out; //ball shift left to P1
+            
+          state.P2:
+            alu.a = ball_pos.q;
+            alu.b = 1;
+            alu.alufn = 6h21; 
+            ball_pos.d = alu.out; //ball shift right to P2  
+      }
+    }
+  } 
 }

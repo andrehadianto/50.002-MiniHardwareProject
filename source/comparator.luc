@@ -1,0 +1,27 @@
+module comparator (
+    input a[16],
+    input b[16],   
+    input alufn[6],
+    output cmp[16]
+  ) {
+  
+  always {
+    cmp[15:0] = 0;           
+    case(alufn[2:0]) {
+      3b011:
+        if(a == b) {
+          cmp[0] = 1;
+        }
+      3b101:
+        if($signed(a) < $signed(b)) {
+          cmp[0] = 1;
+        } 
+      3b111:
+        if($signed(a) <= $signed(b)) {
+          cmp[0] = 1;
+        } 
+      default:
+        cmp[0] = 0;        
+    }    
+  }
+}
